@@ -49,8 +49,9 @@ raise 'Specify shift factor' unless shift_factor = ARGV[1]
 shift_factor = Integer(shift_factor)
 
 puts ['TF', 'Rate ratio', 'Significance', 'Peaks covered', 'Peaks uncovered', 'Control covered', 'Control uncovered'].join("\t")
-# tf_chipseq_fn = 'gtrd/adaptive_quality/ANDR_MOUSE.bed'
-Dir.glob('gtrd/adaptive_quality/*_MOUSE.bed').sort.map{|tf_chipseq_fn|
+Dir.glob('gtrd/confirmed_by_motif/*_MOUSE.bed').reject{|tf_chipseq_fn|
+  File.size(tf_chipseq_fn) == 0
+}.sort.map{|tf_chipseq_fn|
   fisher_table = FisherTable.by_two_classes(
     class_a_positive: `#{peaks_cmd(cell_line_enhancers_fn) + '|' + num_peaks_overlapped_cmd(tf_chipseq_fn)}`.to_i,
     class_a_negative: `#{peaks_cmd(cell_line_enhancers_fn) + '|' + num_peaks_nonoverlapped_cmd(tf_chipseq_fn)}`.to_i,
