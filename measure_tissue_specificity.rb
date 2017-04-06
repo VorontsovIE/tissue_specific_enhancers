@@ -21,7 +21,7 @@ uniprots_of_interest = tf_infos.map{|row|
   [tf, [rate_1, significance_1], [rate_2, significance_2]]
 }.select{|tf,(r1,s1),(r2,s2)|
   alpha = 0.05 / tf_infos.size # Bonferroni correction
-  r1 > 1 && s1 < alpha || r2 > 1 && s2 < (0.05 / 250)
+  r1 > 1 && s1 < alpha || r2 > 1 && s2 < alpha
 }.map{|tf,*rest|
   "#{tf}_MOUSE"
 }.to_set
