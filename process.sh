@@ -2,6 +2,20 @@ rake download_genome_assembly
 ln -s /home/ilya/iogen/genome/mm10/ genome
 rake generate_whole_genome_fasta
 
+##########################
+# Make uniprot --> gene name mapping unique and consistent with expressions matrix
+cat uniprot_gene_names.tsv | tail -n+2 | cut -f 2,5 | ruby -e 'puts readlines.map{|l| id,nm = l.chomp.split("\t",2); [id, nm.split(" 
+").first].join("\t") }' | sort -k1,1 > uniprot_main_gene_name.tsv
+sed -ie 's/^P53_MOUSE\tTp53$/P53_MOUSE\tTrp53/' uniprot_main_gene_name.tsv
+sed -ie 's/^SPI1_MOUSE\tSpi1$/SPI1_MOUSE\tSfpi1/' uniprot_main_gene_name.tsv
+sed -ie 's/^ZN143_MOUSE\tZnf143$/ZN143_MOUSE\tZfp143/' uniprot_main_gene_name.tsv
+sed -ie 's/^ZN335_MOUSE\tZnf335$/ZN335_MOUSE\tZfp335/' uniprot_main_gene_name.tsv
+sed -ie 's/^ZN322_MOUSE\tZnf322$/ZN322_MOUSE\tZfp322a/' uniprot_main_gene_name.tsv
+sed -ie 's/^KMT2A_MOUSE\tKmt2a$/KMT2A_MOUSE\tMll1/' uniprot_main_gene_name.tsv
+sed -ie 's/^KMT2B_MOUSE\tKmt2b$/KMT2B_MOUSE\tMll2/' uniprot_main_gene_name.tsv
+sed -ie 's/^KAT8_MOUSE\tKat8$/KAT8_MOUSE\tMyst1/' uniprot_main_gene_name.tsv
+##########################
+
 # mkdir -p gtrd/AB_quality
 # find gtrd/ -xtype f -iname '*.bed' | grep -Pe 'gtrd/(high|higest)/' | xargs -n1 basename -s .bed | ruby -e 'puts readlines.map{|l| l.chomp[0..-3] }' | sort | uniq | xargs -I{} -n1 echo 'cat gtrd/highest/{}.A.bed gtrd/high/{}.B.bed | sort -k1,1 -k2,2n | bedtools merge > gtrd/AB_quality/{}.bed' | bash
 
@@ -42,16 +56,49 @@ find gtrd/adaptive_quality/ -iname '*_MOUSE.bed' | xargs -n1 basename -s .bed | 
 mkdir -p gtrd/confirmed_by_motif
 find gtrd/adaptive_quality/ -iname '*_MOUSE.bed' | xargs -n1 basename -s .bed | sort | xargs -n1 -I{} echo 'cat `find sites/ -iname "{}*"` | sort -k1,1 -k2,2n | bedtools merge | bedtools intersect -a gtrd/adaptive_quality/{}.bed -b - -u > gtrd/confirmed_by_motif/{}.bed' | parallel -j8
 
-mkdir -p results/${FOLDER}
-find merged_mm10_${FOLDER} -iname '*.bed' | xargs -n1 basename -s .bed | sort | xargs -n1 -I{} echo "ruby overlapped_enhancers.rb merged_mm10_${FOLDER}/{}.bed 100 > results/${FOLDER}/{}.tsv" | parallel -j8
+# ruby calculate_tau_scores.rb | sort -k1,1 > tau_scores.tsv
+
+##########################################################
+# Calculate significances of "enhancer-specific" binding #
+##########################################################
+mkdir -p results_all_bound/${FOLDER}
+find merged_mm10_${FOLDER} -iname '*.bed' | xargs -n1 basename -s .bed | sort | xargs -n1 -I{} echo \
+  "ruby overlapped_enhancers.rb merged_mm10_${FOLDER}/{}.bed 100 gtrd/adaptive_quality > results_all_bound/${FOLDER}/{}.tsv" \
+  | parallel -j24
+
+mkdir -p results_bound_motif_confirmed/${FOLDER}
+find merged_mm10_${FOLDER} -iname '*.bed' | xargs -n1 basename -s .bed | sort | xargs -n1 -I{} echo \
+  "ruby overlapped_enhancers.rb merged_mm10_${FOLDER}/{}.bed 100 gtrd/confirmed_by_motif > results_bound_motif_confirmed/${FOLDER}/{}.tsv" \
+  | parallel -j24
+##########################################################
+
+
+###################################################################
+# Join gene name and tissue-specific expression to significances  #
+###################################################################
+find results_all_bound/${FOLDER}/ -iname '*.tsv' | xargs -n1 basename -s .tsv | xargs -n1 -I{} echo \
+  "cat results_all_bound/${FOLDER}/{}.tsv | ruby join_infos.rb {} | sponge results_all_bound/${FOLDER}/{}.tsv" \
+  | parallel -j24
+
+find results_bound_motif_confirmed/${FOLDER}/ -iname '*.tsv' | xargs -n1 basename -s .tsv | xargs -n1 -I{} echo \
+  "cat results_bound_motif_confirmed/${FOLDER}/{}.tsv | ruby join_infos.rb {} | sponge results_bound_motif_confirmed/${FOLDER}/{}.tsv" \
+  | parallel -j24
+###################################################################
+
 
 #####################################
 # переименуем папки результатов, сделанных по чипсекам, поправленным/непоправленным
 # на наличие мотива в `results_shifted100` и `results_shifted100_withMotif`
 #####################################
 
-find results_shifted100/TS_strong_enhancers/ -xtype f | xargs -n1 basename | xargs -n1 -I{} echo 'ruby glue_results.rb results_shifted100/TS_strong_enhancers/{} results_shifted100_withMotif/TS_strong_enhancers/{} | cut -f1-7,9- > results_combined/TS_strong_enhancers/{}' | bash
-find results_shifted100/TS_active_promoters/ -xtype f | xargs -n1 basename | xargs -n1 -I{} echo 'ruby glue_results.rb results_shifted100/TS_active_promoters/{} results_shifted100_withMotif/TS_active_promoters/{} | cut -f1-7,9- > results_combined/TS_active_promoters/{}' | bash
+# find results_shifted100/${FOLDER}/ -xtype f | xargs -n1 basename | xargs -n1 -I{} echo \
+#   'ruby glue_results.rb results_shifted100/${FOLDER}/{} results_shifted100_withMotif/${FOLDER}/{} | cut -f1-7,9- > results_combined/${FOLDER}/{}' \
+#   | bash
+
+mkdir -p results_combined/${FOLDER}
+find results_all_bound/${FOLDER}/ -xtype f | xargs -n1 basename | xargs -n1 -I{} echo \
+  "ruby glue_results.rb results_all_bound/${FOLDER}/{} results_bound_motif_confirmed/${FOLDER}/{} | cut -f1-7,11- > results_combined/${FOLDER}/{}" \
+  | bash
 
 
 

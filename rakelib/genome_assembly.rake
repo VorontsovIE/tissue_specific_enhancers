@@ -20,7 +20,7 @@ end
 #   while genome assembly seems to be the same
 desc 'Download hg19 genome assembly (from ENSEMBL).'
 task :download_genome_assembly do
-  folder = '/home/ilya/iogen/genome/mm10'
+  folder = 'genomes/mouse/mm10'
   mkdir_p folder
   sh 'wget', "--directory-prefix=#{folder}", "http://hgdownload.cse.ucsc.edu/goldenPath/mm10/bigZips/chromFa.tar.gz"
   sh 'tar', '-C', folder, '-zxf', File.join(folder, 'chromFa.tar.gz')
