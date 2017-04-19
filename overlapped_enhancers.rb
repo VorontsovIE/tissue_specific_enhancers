@@ -55,12 +55,21 @@ def num_peaks_nonoverlapped_cmd(overlapped_by_fn)
   ].join('|')
 end
 
+###################
 raise 'Specify cell-line filename'  unless cell_line_enhancers_fn = ARGV[0] # 'merged_mm10_TS_strong_enhancers/Liver.bed'
+
 raise 'Specify shift factor' unless shift_factor = ARGV[1]
 shift_factor = Integer(shift_factor)
 
+raise 'Specify folder with bed files of DNA-regions bound by different TFs'  unless bound_regions_folder = ARGV[2]
+# bound_regions_folder = 'gtrd/adaptive_quality/'
+# bound_regions_folder = 'gtrd/confirmed_by_motif/'
+##################
+
 puts ['TF', 'Rate ratio', 'Significance', 'Peaks covered', 'Peaks uncovered', 'Control covered', 'Control uncovered'].join("\t")
-Dir.glob('gtrd/confirmed_by_motif/*_MOUSE.bed').reject{|tf_chipseq_fn|
+
+
+Dir.glob(File.join(bound_regions_folder, '*_MOUSE.bed')).reject{|tf_chipseq_fn|
   File.size(tf_chipseq_fn) == 0
 }.sort.map{|tf_chipseq_fn|
   fisher_table = FisherTable.by_two_classes(
@@ -70,7 +79,7 @@ Dir.glob('gtrd/confirmed_by_motif/*_MOUSE.bed').reject{|tf_chipseq_fn|
     class_b_negative: `#{peaks_shifted_leftright_cmd(cell_line_enhancers_fn, shift_factor: shift_factor) + '|' + num_peaks_nonoverlapped_cmd(tf_chipseq_fn)}`.to_i
   )
 
-  tf = File.basename(tf_chipseq_fn, '_MOUSE.bed')
+  tf = File.basename(tf_chipseq_fn, '.bed')
   [tf, fisher_table]
 }.sort_by{|tf, fisher_table|
   fisher_table.a_to_b_positive_rate_ratio || -1
@@ -81,5 +90,5 @@ Dir.glob('gtrd/confirmed_by_motif/*_MOUSE.bed').reject{|tf_chipseq_fn|
     fisher_table.class_b_positive,
     fisher_table.class_b_negative
   ]
-  puts [tf, fisher_table.a_to_b_positive_rate_ratio, fisher_table.significance.to_f, *fisher_values].join("\t")
+  puts [tf, fisher_table.a_to_b_positive_rate_ratio || '--', fisher_table.significance.to_f, *fisher_values].join("\t")
 }
