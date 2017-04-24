@@ -13,6 +13,6 @@ line_by_tf_1.each_key{|tf|
     puts(line_by_tf_1[tf] + "\t" + line_by_tf_2[tf])
   else
     infos_1 = line_by_tf_1[tf].split("\t")
-    puts line_by_tf_1[tf] + "\t" + (['--'] * (infos_1.size - 2) + infos_1[-2,2]).join("\t")
+    puts line_by_tf_1[tf] + "\t" + (['--'] * (infos_1.size - 4) + infos_1[-4,4]).join("\t")
   end
 }

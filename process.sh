@@ -86,21 +86,17 @@ find results_bound_motif_confirmed/${FOLDER}/ -iname '*.tsv' | xargs -n1 basenam
 ###################################################################
 
 
-#####################################
-# переименуем папки результатов, сделанных по чипсекам, поправленным/непоправленным
-# на наличие мотива в `results_shifted100` и `results_shifted100_withMotif`
-#####################################
-
-# find results_shifted100/${FOLDER}/ -xtype f | xargs -n1 basename | xargs -n1 -I{} echo \
-#   'ruby glue_results.rb results_shifted100/${FOLDER}/{} results_shifted100_withMotif/${FOLDER}/{} | cut -f1-7,9- > results_combined/${FOLDER}/{}' \
-#   | bash
+#####################################################################################
+# переименуем папки результатов, сделанных по чипсекам, поправленным/непоправленным #
+# на наличие мотива в `results_shifted100` и `results_shifted100_withMotif`         #
+#####################################################################################
 
 mkdir -p results_combined/${FOLDER}
 find results_all_bound/${FOLDER}/ -xtype f | xargs -n1 basename | xargs -n1 -I{} echo \
-  "ruby glue_results.rb results_all_bound/${FOLDER}/{} results_bound_motif_confirmed/${FOLDER}/{} | cut -f1-7,11- > results_combined/${FOLDER}/{}" \
+  "ruby glue_results.rb results_all_bound/${FOLDER}/{} results_bound_motif_confirmed/${FOLDER}/{} | cut -f1-7,13- > results_combined/${FOLDER}/{}" \
   | bash
 
-
+#####################################################################################
 
 find tissue_specificity/ -xtype f -iname '*.tsv' | xargs -n1 -I{} echo 'ruby correct_tissue_specificity_ids.rb "{}" > "{}"_' | bash
 find tissue_specificity/ -xtype f -iname '*.tsv_' | xargs -n1 -I{} basename -s .tsv_ "{}" | xargs -n1 -I{} echo 'mv "tissue_specificity/{}.tsv_" "tissue_specificity/{}.tsv"' | bash
