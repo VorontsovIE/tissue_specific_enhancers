@@ -5,7 +5,7 @@ line_by_tf_2 = File.readlines(fn_2).drop(1).map(&:chomp).map{|line| [line.split(
 #puts(File.readlines(fn_1).first.chomp + "\t" + File.readlines(fn_2).first.chomp)
 header_1 = File.readlines(fn_1).first.chomp
 header_2 = File.readlines(fn_2).first.chomp.split("\t")
-header_2 = (header_2[0...-2].map{|el| "#{el}.1" } + header_2[-2,2]).join("\t")
+header_2 = (header_2.first(1) + header_2[1...-6].map{|el| "#{el}.1" } + header_2[-6,6]).join("\t")
 puts(header_1 + "\t" + header_2)
 
 line_by_tf_1.each_key{|tf|

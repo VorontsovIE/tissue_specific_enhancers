@@ -15,8 +15,8 @@ def hg_score(expressions)
   (Math.log2(n) + entropy) / Math.log2(n)
 end
 
-File.readlines('Chipseq_enrichment/MATRIX_rpkm.txt').drop(1).each{|line|
-  gene, *expressions = line.chomp.split("\t")
+File.readlines('Chipseq_enrichment/quant.norm.csv').drop(1).each{|line|
+  gene, *expressions = line.chomp.split(",")
   expressions = expressions.map(&:to_f)
   next  if expressions.all?(&:zero?)
   expressions = expressions.map{|x| x + 1.0 } ## pseudocount addition

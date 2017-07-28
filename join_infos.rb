@@ -11,6 +11,10 @@ def detect_column(table, pattern)
   end
 end
 
+def take_column(table, column)
+  table.map{|row| row[column] }
+end
+
 def take_columns(table, columns)
   table.map{|row| row.values_at(*columns) }
 end
@@ -58,18 +62,6 @@ def print_table(table)
   table.each{|row| puts row.join("\t") }
 end
 
-raise 'Specify tissue'  unless tissue = ARGV[0]
-
-rpkms = table_from_file('Chipseq_enrichment/MATRIX_rpkm_pseudoCount.txt')
-uniprot_genename = table_from_file('uniprot_main_gene_name.tsv')
-# tau_scores = table_from_file('tau_scores.txt')
-
-overrepr = table_from_stream($stdin)
-
-# p overrepr.first(2)
-# p uniprot_genename.first(2)
-# p rpkms.first(2)
-
 def tau_score(expressions)
   max_expression = expressions.max.to_f
   return 0  if max_expression == 0
@@ -78,23 +70,57 @@ def tau_score(expressions)
   normed_expressions.map{|normed_expr| 1 - normed_expr }.inject(0.0, &:+) / (n - 1)
 end
 
+raise 'Specify tissue'  unless tissue = ARGV[0]
+
+rpkms = table_from_file('Chipseq_enrichment/MATRIX_rpkm_pseudoCount.txt')
+uniprot_genename = table_from_file('uniprot_main_gene_name.tsv')
+
+uniprot_genename.first(10)
+
+overrepr = table_from_stream($stdin)
+
 tissue_column = detect_column(rpkms, tissue) - 1 # first columns is "Gene"
 
-# we use file with pseudocounts because it use gene names, not ensembl gene identifiers
-tau_scores = File.readlines('Chipseq_enrichment/MATRIX_rpkm_pseudoCount.txt').drop(1).map{|line|
-  gene, *expressions = line.chomp.split("\t")
-  expressions = expressions.map(&:to_f)
-  lognormed_expressions = expressions.map{|x| x <= 1 ? 0.0 : Math.log2(x) }
-  rel_expr = expressions[tissue_column].to_f / expressions.inject(0.0, &:+)
-  tau = tau_score(lognormed_expressions)
-  [gene, tau, rel_expr * tau]
+result = join_tables(overrepr, uniprot_genename, has_header_2: false, header_2: ['Gene'])
+genes = take_column(result, detect_column(result, 'Gene')).drop(1)
+
+tau_scores = File.readlines('Chipseq_enrichment/quant.norm.csv').drop(1).map{|line|
+  ensg, *logexpressions = line.chomp.split(",") # already log-normed
+  logexpressions = logexpressions.map(&:to_f)
+  expressions = logexpressions.map{|x| 2 ** x }
+  expr = expressions[tissue_column].to_f 
+  rel_expr = expr / expressions.inject(0.0, &:+)
+  relmax_expr = expr / expressions.max
+  tau = tau_score(logexpressions)
+  [ensg, expr, tau, rel_expr * tau, relmax_expr * tau]
 }
 
-tau_table = [['Gene', 'Tau score', 'Tau fraction']] + tau_scores
+tau_scores_by_ensg = tau_scores.map{|ensg, expr, tau, rel_tau, relmax_tau| [ensg, [expr, tau, rel_tau, relmax_tau]] }.to_h
+
+ensgs_by_gene = File.readlines('Chipseq_enrichment/ensembl_67.txt').drop(1).map{|l|
+  l.chomp.split("\t").first(2)
+}.group_by(&:last).map{|gene, ensg_gene_pairs|
+  [gene, ensg_gene_pairs.map(&:first)]
+}.to_h
+
+tau_scores_by_gene = genes.map{|gene|
+  ensgs = ensgs_by_gene[gene]
+  tau_infos = ensgs.map{|ensg|
+    tau_scores_by_ensg[ensg]
+  }.compact
+  if !tau_infos.empty?
+    exprs, taus, rel_taus, relmax_taus = tau_infos.transpose
+    [gene, ensgs.join(';'), exprs.max, taus.max, rel_taus.max, relmax_taus.max]
+  else
+    [gene, '', 0, 0, 0, 0]
+  end
+}
+
+tau_table = [['Gene', 'Ensemble gene ID', 'Expression', 'Tau score', 'Tau fraction', 'Tau fraction from max']] + tau_scores_by_gene
 
 
-result = join_tables(overrepr, uniprot_genename, has_header_2: false, header_2: ['Gene'])
-tissue_expressions = take_columns(rpkms, detect_columns(rpkms, ['Gene', tissue]))
-result = join_tables(result, tissue_expressions, column_1: detect_column(result, 'Gene'))
+#tissue_expressions = take_columns(rpkms, detect_columns(rpkms, ['Gene', tissue]))
+#result = join_tables(result, tissue_expressions, column_1: detect_column(result, 'Gene'))
+
 result = join_tables(result, tau_table, column_1: detect_column(result, 'Gene'))
 print_table(result)

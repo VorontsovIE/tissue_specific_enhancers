@@ -14,6 +14,9 @@ sed -ie 's/^ZN322_MOUSE\tZnf322$/ZN322_MOUSE\tZfp322a/' uniprot_main_gene_name.t
 sed -ie 's/^KMT2A_MOUSE\tKmt2a$/KMT2A_MOUSE\tMll1/' uniprot_main_gene_name.tsv
 sed -ie 's/^KMT2B_MOUSE\tKmt2b$/KMT2B_MOUSE\tMll2/' uniprot_main_gene_name.tsv
 sed -ie 's/^KAT8_MOUSE\tKat8$/KAT8_MOUSE\tMyst1/' uniprot_main_gene_name.tsv
+sed -ie 's/^FOXF1_MOUSE\tFoxf1$/FOXF1_MOUSE\tFoxf1a/' uniprot_main_gene_name.tsv
+sed -ie 's/^ZN281_MOUSE\tZnf281$/ZN281_MOUSE\tZfp281/' uniprot_main_gene_name.tsv
+sed -ie 's/^ZN431_MOUSE\tZnf431$/ZN431_MOUSE\tZfp932/' uniprot_main_gene_name.tsv
 ##########################
 
 # mkdir -p gtrd/AB_quality
@@ -61,28 +64,30 @@ find gtrd/adaptive_quality/ -iname '*_MOUSE.bed' | xargs -n1 basename -s .bed | 
 ##########################################################
 # Calculate significances of "enhancer-specific" binding #
 ##########################################################
-mkdir -p results_all_bound/${FOLDER}
+mkdir -p results_all_bound/${FOLDER}_intermediate
 find merged_mm10_${FOLDER} -iname '*.bed' | xargs -n1 basename -s .bed | sort | xargs -n1 -I{} echo \
-  "ruby overlapped_enhancers.rb merged_mm10_${FOLDER}/{}.bed 100 gtrd/adaptive_quality > results_all_bound/${FOLDER}/{}.tsv" \
-  | parallel -j24
+  "ruby overlapped_enhancers.rb merged_mm10_${FOLDER}/{}.bed 100 gtrd/adaptive_quality > results_all_bound/${FOLDER}_intermediate/{}.tsv" \
+  | parallel -j8
 
-mkdir -p results_bound_motif_confirmed/${FOLDER}
+mkdir -p results_bound_motif_confirmed/${FOLDER}_intermediate
 find merged_mm10_${FOLDER} -iname '*.bed' | xargs -n1 basename -s .bed | sort | xargs -n1 -I{} echo \
-  "ruby overlapped_enhancers.rb merged_mm10_${FOLDER}/{}.bed 100 gtrd/confirmed_by_motif > results_bound_motif_confirmed/${FOLDER}/{}.tsv" \
-  | parallel -j24
+  "ruby overlapped_enhancers.rb merged_mm10_${FOLDER}/{}.bed 100 gtrd/confirmed_by_motif > results_bound_motif_confirmed/${FOLDER}_intermediate/{}.tsv" \
+  | parallel -j8
 ##########################################################
 
 
 ###################################################################
 # Join gene name and tissue-specific expression to significances  #
 ###################################################################
-find results_all_bound/${FOLDER}/ -iname '*.tsv' | xargs -n1 basename -s .tsv | xargs -n1 -I{} echo \
-  "cat results_all_bound/${FOLDER}/{}.tsv | ruby join_infos.rb {} | sponge results_all_bound/${FOLDER}/{}.tsv" \
-  | parallel -j24
+mkdir -p results_all_bound/${FOLDER}
+find results_all_bound/${FOLDER}_intermediate/ -iname '*.tsv' | xargs -n1 basename -s .tsv | xargs -n1 -I{} echo \
+  "cat results_all_bound/${FOLDER}_intermediate/{}.tsv | ruby join_infos.rb {} | sponge results_all_bound/${FOLDER}/{}.tsv" \
+  | parallel -j8
 
-find results_bound_motif_confirmed/${FOLDER}/ -iname '*.tsv' | xargs -n1 basename -s .tsv | xargs -n1 -I{} echo \
-  "cat results_bound_motif_confirmed/${FOLDER}/{}.tsv | ruby join_infos.rb {} | sponge results_bound_motif_confirmed/${FOLDER}/{}.tsv" \
-  | parallel -j24
+mkdir -p results_bound_motif_confirmed/${FOLDER}
+find results_bound_motif_confirmed/${FOLDER}_intermediate/ -iname '*.tsv' | xargs -n1 basename -s .tsv | xargs -n1 -I{} echo \
+  "cat results_bound_motif_confirmed/${FOLDER}_intermediate/{}.tsv | ruby join_infos.rb {} | sponge results_bound_motif_confirmed/${FOLDER}/{}.tsv" \
+  | parallel -j8
 ###################################################################
 
 
@@ -93,7 +98,7 @@ find results_bound_motif_confirmed/${FOLDER}/ -iname '*.tsv' | xargs -n1 basenam
 
 mkdir -p results_combined/${FOLDER}
 find results_all_bound/${FOLDER}/ -xtype f | xargs -n1 basename | xargs -n1 -I{} echo \
-  "ruby glue_results.rb results_all_bound/${FOLDER}/{} results_bound_motif_confirmed/${FOLDER}/{} | cut -f1-7,13- > results_combined/${FOLDER}/{}" \
+  "ruby glue_results.rb results_all_bound/${FOLDER}/{} results_bound_motif_confirmed/${FOLDER}/{} | cut -f1-7,15- > results_combined/${FOLDER}/{}" \
   | bash
 
 #####################################################################################
