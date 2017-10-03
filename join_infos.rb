@@ -23,7 +23,7 @@ def without_element(list, idx_to_reject)
   list.each_with_index.reject{|el, idx| idx == idx_to_reject }.map{|el, idx| el }
 end
 
-def join_tables(table_1, table_2, column_1: 0, column_2: 0, has_header_1: true, has_header_2: true, header_1: nil, header_2: nil)
+def join_tables(table_1, table_2, column_1: 0, column_2: 0, has_header_1: true, has_header_2: true, header_1: nil, header_2: nil, replacement_for_skip: false)
   if has_header_1
     header_1 = table_1.first
     table_1 = table_1.drop(1)
@@ -37,13 +37,17 @@ def join_tables(table_1, table_2, column_1: 0, column_2: 0, has_header_1: true, 
     if row_to_join
       row + without_element(row_to_join, column_2)
     else
-      $stderr.puts "Skip #{row}: `#{row[column_1]}` not found."
-      nil
+      if replacement_for_skip
+        $stderr.puts "Replace #{row} with blank cells: `#{row[column_1]}` not found."
+        row + replacement_for_skip
+      else
+        $stderr.puts "Skip #{row}: `#{row[column_1]}` not found."
+        nil
+      end
     end
   }.compact
   
   header = []
-  
   header += header_1 || ['--'] * table_1.first.length
   header += header_2 || ['--'] * (table_2.first.length - 1)
 
@@ -70,57 +74,35 @@ def tau_score(expressions)
   normed_expressions.map{|normed_expr| 1 - normed_expr }.inject(0.0, &:+) / (n - 1)
 end
 
-raise 'Specify tissue'  unless tissue = ARGV[0]
+# only the first part (before dot) of specified filename will be treated as a tissue name
+raise 'Specify filename starting with tissue name'  unless tissue = ARGV[0]
+tissue = tissue.split(".")[0]
 
-rpkms = table_from_file('Chipseq_enrichment/MATRIX_rpkm_pseudoCount.txt')
-uniprot_genename = table_from_file('uniprot_main_gene_name.tsv')
+uniprot_genes_fn = 'uniprot_main_gene_name.tsv'
+annotation_fn = 'TSRE/Tau_expression/annotation.txt'
+rpkms_fn = 'TSRE/Tau_expression/MATRIX_rpkm.txt'
+tau_fn = 'TSRE/Tau_expression/tau_fraction_max_matrix.txt'
 
-uniprot_genename.first(10)
-
+uniprot_genename = table_from_file(uniprot_genes_fn)
 overrepr = table_from_stream($stdin)
 
-tissue_column = detect_column(rpkms, tissue) - 1 # first columns is "Gene"
-
 result = join_tables(overrepr, uniprot_genename, has_header_2: false, header_2: ['Gene'])
-genes = take_column(result, detect_column(result, 'Gene')).drop(1)
 
-tau_scores = File.readlines('Chipseq_enrichment/quant.norm.csv').drop(1).map{|line|
-  ensg, *logexpressions = line.chomp.split(",") # already log-normed
-  logexpressions = logexpressions.map(&:to_f)
-  expressions = logexpressions.map{|x| 2 ** x }
-  expr = expressions[tissue_column].to_f 
-  rel_expr = expr / expressions.inject(0.0, &:+)
-  relmax_expr = expr / expressions.max
-  tau = tau_score(logexpressions)
-  [ensg, expr, tau, rel_expr * tau, relmax_expr * tau]
-}
+annotation_table = [['GeneId', 'Gene', 'Length']] + table_from_file(annotation_fn)
+annotation_table = take_columns(annotation_table, detect_columns(annotation_table, ['Gene', 'GeneId']))
 
-tau_scores_by_ensg = tau_scores.map{|ensg, expr, tau, rel_tau, relmax_tau| [ensg, [expr, tau, rel_tau, relmax_tau]] }.to_h
+rpkm_table = table_from_file(rpkms_fn)
+rpkm_table = take_columns(rpkm_table, detect_columns(rpkm_table, ['Gene', tissue]))
+rpkm_table.shift
+rpkm_table.unshift(['Gene', 'RPKM'])
 
-ensgs_by_gene = File.readlines('Chipseq_enrichment/ensembl_67.txt').drop(1).map{|l|
-  l.chomp.split("\t").first(2)
-}.group_by(&:last).map{|gene, ensg_gene_pairs|
-  [gene, ensg_gene_pairs.map(&:first)]
-}.to_h
+tau_table = table_from_file(tau_fn)
+tau_table = [tau_table.first + ['Tau']] + tau_table.drop(1).map{|row| tau = row.drop(2).map{|x| Float(x) }.max; [*row, tau] }
+tau_table = take_columns(tau_table, detect_columns(tau_table, ['GeneName', 'GeneId', tissue, 'Tau']))
+tau_table.shift
+tau_table.unshift(['GeneName', 'GeneId', 'TauFraction', 'Tau'])
 
-tau_scores_by_gene = genes.map{|gene|
-  ensgs = ensgs_by_gene[gene]
-  tau_infos = ensgs.map{|ensg|
-    tau_scores_by_ensg[ensg]
-  }.compact
-  if !tau_infos.empty?
-    exprs, taus, rel_taus, relmax_taus = tau_infos.transpose
-    [gene, ensgs.join(';'), exprs.max, taus.max, rel_taus.max, relmax_taus.max]
-  else
-    [gene, '', 0, 0, 0, 0]
-  end
-}
-
-tau_table = [['Gene', 'Ensemble gene ID', 'Expression', 'Tau score', 'Tau fraction', 'Tau fraction from max']] + tau_scores_by_gene
-
-
-#tissue_expressions = take_columns(rpkms, detect_columns(rpkms, ['Gene', tissue]))
-#result = join_tables(result, tissue_expressions, column_1: detect_column(result, 'Gene'))
-
-result = join_tables(result, tau_table, column_1: detect_column(result, 'Gene'))
+result = join_tables(result, annotation_table, column_1: detect_column(result, 'Gene'), column_2: detect_column(annotation_table, 'Gene'))
+result = join_tables(result, rpkm_table, column_1: detect_column(result, 'GeneId'), column_2: detect_column(rpkm_table, 'Gene'))
+result = join_tables(result, tau_table, column_1: detect_column(result, 'GeneId'), column_2: detect_column(tau_table, 'GeneId'), replacement_for_skip: ['--', '--'])
 print_table(result)
