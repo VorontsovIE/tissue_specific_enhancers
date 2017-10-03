@@ -1,3 +1,8 @@
+wget http://hgdownload.cse.ucsc.edu/admin/exe/linux.x86_64/liftOver
+chmod +x liftOver
+
+sudo yum install moreutils
+
 rake download_genome_assembly
 ln -s /home/ilya/iogen/genome/mm10/ genome
 rake generate_whole_genome_fasta
@@ -28,80 +33,86 @@ ruby adaptive_chipseq_combiner.rb | bash
 find gtrd/adaptive_quality/ -xtype f -iname '*.bed' | xargs -n1 basename -s '.bed' | xargs -n1 -I{} echo "echo -n {} ' '; cat gtrd/adaptive_quality/{}.bed | ruby -e 'puts readlines.map{|l| s,f = l.split[1,2].map(&:to_f); f-s}.inject(0.0, &:+) / 1e6'" | bash | ruby -e 'puts readlines.sort_by{|l| l.split[-1].to_f }'
 
 ##############################
-
-FOLDER=TS_active_promoters
-# FOLDER=TS_strong_enhancers
-
-# find $FOLDER -xtype f -iname '*.bed' | xargs -n1 basename -s .bed | xargs -n1 -I{} awk -e '{print $1 "\t" $2 "\t" $3 "\t" "{}_"$4}' ${FOLDER}/{}.bed | sort -k1,1 -k2,2n > ${FOLDER}.bed
-
-mkdir -p mm10_${FOLDER}
-
-find $FOLDER -xtype f -iname '*.bed' | xargs -n1 basename -s .bed | xargs -n1 -I{} echo "liftOver ${FOLDER}/{}.bed liftOverChains/mm9ToMm10.over.chain.gz mm10_${FOLDER}/{}.bed mm10_${FOLDER}/{}.bed.unlifted" | bash
-
-mkdir -p "merged_mm10_${FOLDER}"
-find $FOLDER -xtype f -iname '*.bed' | xargs -n1 basename -s .bed | xargs -n1 -I{} echo "cat mm10_${FOLDER}/{}.bed | sort -k1,1 -k2,2n | bedtools merge > merged_mm10_${FOLDER}/{}.bed" | bash
-
-# Анализ покрытия генома (в мегабазах)
-find merged_mm10_${FOLDER}/ -xtype f -iname '*.bed' | xargs -n1 basename -s '.bed' | xargs -n1 -I{} echo "echo -n {} ' '; cat merged_mm10_${FOLDER}/{}.bed | ruby -e 'puts readlines.map{|l| s,f = l.split[1,2].map(&:to_f); f-s}.inject(0.0, &:+) / 1e6'" | bash | ruby -e 'puts readlines.sort_by{|l| l.split[-1].to_f }'
-# Интересный факт:
-#   Промотеры в Placenta - всего 0.0174 мегабаз, тогда как промотеры в остальных тканях занимают порядка 0.5 - 5.0 мегабаз. 
-#   С энхансерами всё ок.
-
-# for CL in `find merged_mm10_${FOLDER}/ -xtype f -iname '*.bed' | xargs -n1 basename -s '.bed'` ; do
-#   for MOTIF in `find gtrd/adaptive_quality/ -xtype f -iname '*_MOUSE.bed' | xargs -n1 basename -s '.bed'` ; do
-#     # COVERED_ELEMENTS=`bedtools intersect -c -a gtrd/adaptive_quality/${MOTIF}.bed -b merged_mm10_${FOLDER}/${CL}.bed | cut -f4 | sort | uniq -c | ruby -e 'counts=readlines.map{|l| l.split.map(&:to_i) }; puts counts.map{|a,b| a*b}.sum'`
-#     bedtools intersect -wao -a gtrd/adaptive_quality/${MOTIF}.bed -b merged_mm10_${FOLDER}/${CL}.bed | bedtools groupby -c 7 -o sum
-#   done
-# done
-
+# Find site occurences
 find gtrd/adaptive_quality/ -iname '*_MOUSE.bed' | xargs -n1 basename -s .bed | sort | xargs -n1 -I{} echo 'find motif_collection/ -iname "{}*"' | bash | xargs -n1 basename | xargs -n1 -I MOTIF echo './run_for_single_motif.sh MOTIF motif_collection motif_thresholds ./get_scores.sh sites mono 0.0005' | parallel -j8
 
+# Find GTRD peaks confirmed by motif occurences
 mkdir -p gtrd/confirmed_by_motif
 find gtrd/adaptive_quality/ -iname '*_MOUSE.bed' | xargs -n1 basename -s .bed | sort | xargs -n1 -I{} echo 'cat `find sites/ -iname "{}*"` | sort -k1,1 -k2,2n | bedtools merge | bedtools intersect -a gtrd/adaptive_quality/{}.bed -b - -u > gtrd/confirmed_by_motif/{}.bed' | parallel -j8
 
+##############################
+for FOLDER in  Active_promoters  Strong_enhancers  SuperEnhancers/Constituent_Enhs  SuperEnhancers/SuperEnhs  SuperEnhancers_27ac/Constituent_Enhs  SuperEnhancers_27ac/SuperEnhs ; do
+  echo "${FOLDER}"
+  # find $FOLDER -xtype f -iname '*.bed' | xargs -n1 -I{} basename -s .bed "{}" | xargs -n1 -I{} awk -e '{print $1 "\t" $2 "\t" $3 "\t" "{}_"$4}' ${FOLDER}/{}.bed | sort -k1,1 -k2,2n > ${FOLDER}.bed
+
+  mkdir -p "TSRE/mm10/${FOLDER}"
+
+  find "TSRE/${FOLDER}" -xtype f -iname '*.bed' | xargs -n1 -I{} basename -s .bed "{}" | xargs -n1 -I{} echo "./liftOver 'TSRE/${FOLDER}/{}.bed' liftOverChains/mm9ToMm10.over.chain.gz 'TSRE/mm10/${FOLDER}/{}.bed' 'TSRE/mm10/${FOLDER}/{}.bed.unlifted'" | bash
+
+  mkdir -p "TSRE/mm10_merged/${FOLDER}"
+  find "TSRE/mm10/${FOLDER}" -xtype f -iname '*.bed' | xargs -n1 -I{} basename -s .bed "{}" | xargs -n1 -I{} echo "cat 'TSRE/mm10/${FOLDER}/{}.bed' | sort -k1,1 -k2,2n | bedtools merge > 'TSRE/mm10_merged/${FOLDER}/{}.bed'" | bash
+
+  # Анализ покрытия генома (в мегабазах)
+  find "TSRE/mm10_merged/${FOLDER}/" -xtype f -iname '*.bed' | xargs -n1 -I{} basename -s .bed "{}" | xargs -n1 -I{} echo "echo -n {} ' '; cat 'TSRE/mm10_merged/${FOLDER}/{}.bed' | ruby -e 'puts readlines.map{|l| s,f = l.split[1,2].map(&:to_f); f-s}.inject(0.0, &:+) / 1e6'" | bash | ruby -e 'puts readlines.sort_by{|l| l.split[-1].to_f }'
+
+  # Интересный факт:
+  #   Промотеры в Placenta - всего 0.0174 мегабаз, тогда как промотеры в остальных тканях занимают порядка 0.5 - 5.0 мегабаз. 
+  #   С энхансерами всё ок.
+
+  # for CL in `find "mm10_merged/${FOLDER}/" -xtype f -iname '*.bed' | xargs -n1 -I{} basename -s .bed "{}"` ; do
+  #   for MOTIF in `find gtrd/adaptive_quality/ -xtype f -iname '*_MOUSE.bed' | xargs -n1 -I{} basename -s .bed "{}"` ; do
+  #     # COVERED_ELEMENTS=`bedtools intersect -c -a "gtrd/adaptive_quality/${MOTIF}.bed" -b "mm10_merged/${FOLDER}/${CL}.bed" | cut -f4 | sort | uniq -c | ruby -e 'counts=readlines.map{|l| l.split.map(&:to_i) }; puts counts.map{|a,b| a*b}.sum'`
+  #     bedtools intersect -wao -a "gtrd/adaptive_quality/${MOTIF}.bed" -b "mm10_merged/${FOLDER}/${CL}.bed" | bedtools groupby -c 7 -o sum
+  #   done
+  # done
+done
+
 # ruby calculate_tau_scores.rb | sort -k1,1 > tau_scores.tsv
 
-##########################################################
-# Calculate significances of "enhancer-specific" binding #
-##########################################################
-mkdir -p results_all_bound/${FOLDER}_intermediate
-find merged_mm10_${FOLDER} -iname '*.bed' | xargs -n1 basename -s .bed | sort | xargs -n1 -I{} echo \
-  "ruby overlapped_enhancers.rb merged_mm10_${FOLDER}/{}.bed 100 gtrd/adaptive_quality > results_all_bound/${FOLDER}_intermediate/{}.tsv" \
-  | parallel -j8
 
-mkdir -p results_bound_motif_confirmed/${FOLDER}_intermediate
-find merged_mm10_${FOLDER} -iname '*.bed' | xargs -n1 basename -s .bed | sort | xargs -n1 -I{} echo \
-  "ruby overlapped_enhancers.rb merged_mm10_${FOLDER}/{}.bed 100 gtrd/confirmed_by_motif > results_bound_motif_confirmed/${FOLDER}_intermediate/{}.tsv" \
-  | parallel -j8
-##########################################################
+for FOLDER in  Active_promoters  Strong_enhancers  SuperEnhancers/Constituent_Enhs  SuperEnhancers/SuperEnhs  SuperEnhancers_27ac/Constituent_Enhs  SuperEnhancers_27ac/SuperEnhs ; do
+  ##########################################################
+  # Calculate significances of "enhancer-specific" binding #
+  ##########################################################
+  mkdir -p "TSRE/results_all_bound/intermediate/${FOLDER}"
+  find "TSRE/mm10_merged/${FOLDER}" -iname '*.bed' | xargs -n1 -I{} basename -s .bed "{}" | sort | xargs -n1 -I{} echo \
+    "ruby overlapped_enhancers.rb 'TSRE/mm10_merged/${FOLDER}/{}.bed' 100 gtrd/adaptive_quality > 'TSRE/results_all_bound/intermediate/${FOLDER}/{}.tsv'" \
+    | parallel -j8
 
+  mkdir -p "TSRE/results_bound_motif_confirmed/intermediate/${FOLDER}"
+  find "TSRE/mm10_merged/${FOLDER}" -iname '*.bed' | xargs -n1 -I{} basename -s .bed "{}" | sort | xargs -n1 -I{} echo \
+    "ruby overlapped_enhancers.rb 'TSRE/mm10_merged/${FOLDER}/{}.bed' 100 gtrd/confirmed_by_motif > 'TSRE/results_bound_motif_confirmed/intermediate/${FOLDER}/{}.tsv'" \
+    | parallel -j8
+  ##########################################################
+done
 
-###################################################################
-# Join gene name and tissue-specific expression to significances  #
-###################################################################
-mkdir -p results_all_bound/${FOLDER}
-find results_all_bound/${FOLDER}_intermediate/ -iname '*.tsv' | xargs -n1 basename -s .tsv | xargs -n1 -I{} echo \
-  "cat results_all_bound/${FOLDER}_intermediate/{}.tsv | ruby join_infos.rb {} | sponge results_all_bound/${FOLDER}/{}.tsv" \
-  | parallel -j8
+for FOLDER in  Active_promoters  Strong_enhancers  SuperEnhancers/Constituent_Enhs  SuperEnhancers/SuperEnhs  SuperEnhancers_27ac/Constituent_Enhs  SuperEnhancers_27ac/SuperEnhs ; do
+  ###################################################################
+  # Join gene name and tissue-specific expression to significances  #
+  ###################################################################
+  mkdir -p "TSRE/results_all_bound/${FOLDER}"
+  find "TSRE/results_all_bound/intermediate/${FOLDER}/" -iname '*.tsv' | xargs -n1 -I{} basename "{}" | xargs -n1 -I{} echo \
+    "cat 'TSRE/results_all_bound/intermediate/${FOLDER}/{}' | ruby join_infos.rb '{}' | sponge 'TSRE/results_all_bound/${FOLDER}/{}'" \
+    | parallel -j8
 
-mkdir -p results_bound_motif_confirmed/${FOLDER}
-find results_bound_motif_confirmed/${FOLDER}_intermediate/ -iname '*.tsv' | xargs -n1 basename -s .tsv | xargs -n1 -I{} echo \
-  "cat results_bound_motif_confirmed/${FOLDER}_intermediate/{}.tsv | ruby join_infos.rb {} | sponge results_bound_motif_confirmed/${FOLDER}/{}.tsv" \
-  | parallel -j8
-###################################################################
+  mkdir -p "TSRE/results_bound_motif_confirmed/${FOLDER}"
+  find "TSRE/results_bound_motif_confirmed/intermediate/${FOLDER}/" -iname '*.tsv' | xargs -n1 -I{} basename "{}" | xargs -n1 -I{} echo \
+    "cat 'TSRE/results_bound_motif_confirmed/intermediate/${FOLDER}/{}' | ruby join_infos.rb '{}' | sponge 'TSRE/results_bound_motif_confirmed/${FOLDER}/{}'" \
+    | parallel -j8
+  ###################################################################
 
+  #####################################################################################
+  # переименуем папки результатов, сделанных по чипсекам, поправленным/непоправленным #
+  # на наличие мотива в `results_shifted100` и `results_shifted100_withMotif`         #
+  #####################################################################################
 
-#####################################################################################
-# переименуем папки результатов, сделанных по чипсекам, поправленным/непоправленным #
-# на наличие мотива в `results_shifted100` и `results_shifted100_withMotif`         #
-#####################################################################################
+  mkdir -p "TSRE/results_combined/${FOLDER}"
+  find "TSRE/results_all_bound/${FOLDER}/" -xtype f | xargs -n1 basename | xargs -n1 -I{} echo \
+    "ruby glue_results.rb 'TSRE/results_all_bound/${FOLDER}/{}' 'TSRE/results_bound_motif_confirmed/${FOLDER}/{}' | cut -f1-7,15- > 'TSRE/results_combined/${FOLDER}/{}'" \
+    | bash
+  #####################################################################################
+done
 
-mkdir -p results_combined/${FOLDER}
-find results_all_bound/${FOLDER}/ -xtype f | xargs -n1 basename | xargs -n1 -I{} echo \
-  "ruby glue_results.rb results_all_bound/${FOLDER}/{} results_bound_motif_confirmed/${FOLDER}/{} | cut -f1-7,15- > results_combined/${FOLDER}/{}" \
-  | bash
-
-#####################################################################################
 
 find tissue_specificity/ -xtype f -iname '*.tsv' | xargs -n1 -I{} echo 'ruby correct_tissue_specificity_ids.rb "{}" > "{}"_' | bash
 find tissue_specificity/ -xtype f -iname '*.tsv_' | xargs -n1 -I{} basename -s .tsv_ "{}" | xargs -n1 -I{} echo 'mv "tissue_specificity/{}.tsv_" "tissue_specificity/{}.tsv"' | bash
