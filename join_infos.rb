@@ -23,7 +23,7 @@ def without_element(list, idx_to_reject)
   list.each_with_index.reject{|el, idx| idx == idx_to_reject }.map{|el, idx| el }
 end
 
-def join_tables(table_1, table_2, column_1: 0, column_2: 0, has_header_1: true, has_header_2: true, header_1: nil, header_2: nil, replacement_for_skip: false)
+def join_tables(table_1, table_2, column_1: 0, column_2: 0, has_header_1: true, has_header_2: true, header_1: nil, header_2: nil)
   if has_header_1
     header_1 = table_1.first
     table_1 = table_1.drop(1)
@@ -37,13 +37,8 @@ def join_tables(table_1, table_2, column_1: 0, column_2: 0, has_header_1: true, 
     if row_to_join
       row + without_element(row_to_join, column_2)
     else
-      if replacement_for_skip
-        $stderr.puts "Replace #{row} with blank cells: `#{row[column_1]}` not found."
-        row + replacement_for_skip
-      else
-        $stderr.puts "Skip #{row}: `#{row[column_1]}` not found."
-        nil
-      end
+      $stderr.puts "Skip data for #{row}: `#{row[column_1]}` not found."
+      row + ['--'] * (table_2.first.length - 1)
     end
   }.compact
   
@@ -104,5 +99,5 @@ tau_table.unshift(['GeneName', 'GeneId', 'TauFraction', 'Tau'])
 
 result = join_tables(result, annotation_table, column_1: detect_column(result, 'Gene'), column_2: detect_column(annotation_table, 'Gene'))
 result = join_tables(result, rpkm_table, column_1: detect_column(result, 'GeneId'), column_2: detect_column(rpkm_table, 'Gene'))
-result = join_tables(result, tau_table, column_1: detect_column(result, 'GeneId'), column_2: detect_column(tau_table, 'GeneId'), replacement_for_skip: ['--', '--'])
+result = join_tables(result, tau_table, column_1: detect_column(result, 'GeneId'), column_2: detect_column(tau_table, 'GeneId'))
 print_table(result)
