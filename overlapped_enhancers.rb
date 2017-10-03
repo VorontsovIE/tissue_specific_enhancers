@@ -66,12 +66,10 @@ raise 'Specify folder with bed files of DNA-regions bound by different TFs'  unl
 # bound_regions_folder = 'gtrd/confirmed_by_motif/'
 ##################
 
-cmd = peaks_shifted_leftright_cmd(cell_line_enhancers_fn, shift_factor: shift_factor) + ' | ' + \
-                                  num_peaks_overlapped_cmd(" <( #{peaks_cmd(cell_line_enhancers_fn)} )")
-puts "echo -n #{File.basename(cell_line_enhancers_fn)} \" \"; #{peaks_cmd(cell_line_enhancers_fn)} | wc -l | xargs echo -n ; echo -n \" \"; #{cmd}"
-#puts [`#{peaks_cmd(cell_line_enhancers_fn)} | wc -l`, `#{cmd}`].join("\t")
-
-=begin
+## cmd = peaks_shifted_leftright_cmd(cell_line_enhancers_fn, shift_factor: shift_factor) + ' | ' + \
+##                                   num_peaks_overlapped_cmd(" <( #{peaks_cmd(cell_line_enhancers_fn)} )")
+## puts "echo -n #{File.basename(cell_line_enhancers_fn)} \" \"; #{peaks_cmd(cell_line_enhancers_fn)} | wc -l | xargs echo -n ; echo -n \" \"; #{cmd}"
+## #puts [`#{peaks_cmd(cell_line_enhancers_fn)} | wc -l`, `#{cmd}`].join("\t")
 
 headers =  [
   'TF', 'Odds ratio', 'Significance',
@@ -105,5 +103,3 @@ Dir.glob(File.join(bound_regions_folder, '*_MOUSE.bed')).reject{|tf_chipseq_fn|
   ]
   puts [tf, fisher_table.a_to_b_positive_rate_ratio || '--', fisher_table.significance.to_f, *fisher_values].join("\t")
 }
-
-=end
