@@ -1,3 +1,9 @@
+wget ftp://ftp.sanger.ac.uk/pub/gencode/Gencode_mouse/release_M15/gencode.vM15.annotation.gff3.gz
+zcat gencode.vM15.annotation.gff3.gz | ruby extract_promoters.rb | bedtools flank -g ~/genome_sizes/mm10.genome -s -l 500 -r 0 | bedtools slop -g ~/genome_sizes/mm10.genome -s -l 0 -r 100 | bedtools sort > mm10_gencode_promoters.bed
+cat pc_genes_coordinates_mm9.txt | awk -e '{print $2 "\t" $3 "\t" $4 "\t" $1 "\t" $1 "\t" $5}' > pc_genes_coordinates_mm9.bed
+./liftOver pc_genes_coordinates_mm9.bed liftOverChains/mm9ToMm10.over.chain.gz pc_genes_coordinates_mm10.bed pc_genes_coordinates_mm10.bed.unlifted
+cat pc_genes_coordinates_mm10.bed | bedtools flank -g ~/genome_sizes/mm10.genome -s -l 500 -r 0 | bedtools slop -g ~/genome_sizes/mm10.genome -s -l 0 -r 100 | bedtools sort > mm10_pc_genes_promoters.bed
+
 wget http://hgdownload.cse.ucsc.edu/admin/exe/linux.x86_64/liftOver
 chmod +x liftOver
 
