@@ -21,10 +21,10 @@ raise 'Specify motif' unless motif = ARGV[2]
 raise 'Specify pvalue cutoff'  unless pvalue_cutoff = ARGV[3]
 raise 'Specify enhancer type'  unless enh_type = ARGV[4]
 
-raise 'Specify output bed file for enhancers-on-ChIPseq'  unless chipseq_enhancers_fn = ARGV[5]
+raise 'Specify output bed file for sites-on-enhancer'  unless sites_fn = ARGV[5]
 # chipseq_enhancers_file = Tempfile.new
 # chipseq_enhancers_file.close
-# chipseq_enhancers_fn = chipseq_enhancers_file.path
+# sites_fn = chipseq_enhancers_file.path
 
 raise 'Specify output file with raw logpvalues'  unless raw_pvals_fn = ARGV[6]
 raise 'Specify output file with pvalues stats'  unless output_fn = ARGV[7]
@@ -35,13 +35,14 @@ thresholds_fn = "motif_thresholds/#{motif}.thr"
 
 cmd_1 = [
   peaks_cmd(cell_line_enhancers_fn),
-  "bedtools intersect -u -a - -b #{chipseq_fn}",
-].join(' | ') + " > #{chipseq_enhancers_fn}"
+  "bedtools intersect -u -a #{chipseq_fn} -b -",
+  "bedtools getfasta -fi genomes/mouse/mm10.fa -bed -",
+  "java -cp sarus.jar ru.autosome.SARUS - #{motif_fn} #{pvalue_cutoff} --pvalues-file #{thresholds_fn} --output-scoring-mode logpvalue --suppress --threshold-mode pvalue --output-bed",
+].join(' | ') + " > #{sites_fn}"
 
 cmd_2 = [
-  "bedtools getfasta -fi genomes/mouse/mm10.fa -bed #{chipseq_enhancers_fn}",
-  "java -cp sarus.jar ru.autosome.SARUS - #{motif_fn} #{pvalue_cutoff} --pvalues-file #{thresholds_fn} --output-scoring-mode logpvalue --suppress --threshold-mode pvalue --output-bed",
-  "bedtools intersect -loj -a #{chipseq_enhancers_fn} -b -",
+  peaks_cmd(cell_line_enhancers_fn),
+  "bedtools intersect -loj -a - -b #{sites_fn}",
   "bedtools groupby -c 8 -o collapse",
 ].join(' | ') + " > #{raw_pvals_fn}"
 

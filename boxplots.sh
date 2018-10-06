@@ -6,16 +6,16 @@ for CL in BAT CH12 Kidney MEF Spleen Cortex MEL BmarrowDm Limb Testis Esb4 Olfac
 for folder in 'SuperEnhancers_27ac/Constituent_Enhs' ; do
   mkdir -p score_stats/$folder
   mkdir -p raw_scores/$folder
-  mkdir -p chipseq_enhancer_bed/$folder
+  mkdir -p sites_in_enhancers/$folder
   mkdir -p joined_score_stats/$folder
   for TF in $TFS ; do
     MOTIFS=`find motif_collection/ -xtype f -iname "${TF}*" | xargs -n1 --no-run-if-empty basename -s .pwm`
     for MOTIF in $MOTIFS; do
       ruby score_distribution.rb TSRE/mm10/$folder/${CL}.te.const.txt.bed gtrd/adaptive_quality/${TF}.bed $MOTIF  0.001  TE \
-           chipseq_enhancer_bed/$folder/${CL}.te.const.${MOTIF}.txt \
+           sites_in_enhancers/$folder/${CL}.te.const.${MOTIF}.txt \
            raw_scores/$folder/${CL}.te.const.${MOTIF}.txt  score_stats/$folder/${CL}.te.const.${MOTIF}.txt
       ruby score_distribution.rb TSRE/mm10/$folder/${CL}.se.const.txt.bed gtrd/adaptive_quality/${TF}.bed $MOTIF  0.001  SE \
-           chipseq_enhancer_bed/$folder/${CL}.se.const.${MOTIF}.txt  \
+           sites_in_enhancers/$folder/${CL}.se.const.${MOTIF}.txt  \
            raw_scores/$folder/${CL}.se.const.${MOTIF}.txt  score_stats/$folder/${CL}.se.const.${MOTIF}.txt
       ( \
         echo $'chr\tfrom\tto\tMaxScore\tNumSites\tLen\tLambda\tHomotypicScore\tEnhancerType'; \
