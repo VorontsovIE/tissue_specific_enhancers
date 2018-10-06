@@ -19,15 +19,15 @@ raise 'Specify cell-line filename'  unless cell_line_enhancers_fn = ARGV[0] # 'm
 raise 'Specify chipseq file'  unless chipseq_fn = ARGV[1]
 raise 'Specify motif' unless motif = ARGV[2]
 raise 'Specify pvalue cutoff'  unless pvalue_cutoff = ARGV[3]
+raise 'Specify enhancer type'  unless enh_type = ARGV[4]
 
-raise 'Specify output bed file for enhancers-on-ChIPseq'  unless chipseq_enhancers_fn = ARGV[4]
+raise 'Specify output bed file for enhancers-on-ChIPseq'  unless chipseq_enhancers_fn = ARGV[5]
 # chipseq_enhancers_file = Tempfile.new
 # chipseq_enhancers_file.close
 # chipseq_enhancers_fn = chipseq_enhancers_file.path
 
-raise 'Specify output file with raw logpvalues'  unless raw_pvals_fn = ARGV[5]
-raise 'Specify output file with pvalues stats'  unless output_fn = ARGV[6]
-raise 'Specify enhancer type'  unless enh_type = ARGV[7]
+raise 'Specify output file with raw logpvalues'  unless raw_pvals_fn = ARGV[6]
+raise 'Specify output file with pvalues stats'  unless output_fn = ARGV[7]
 
 pvalue_cutoff = Float(pvalue_cutoff)
 motif_fn = "motif_collection/#{motif}.pwm"
