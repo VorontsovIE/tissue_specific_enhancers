@@ -17,11 +17,11 @@ for folder in 'SuperEnhancers_27ac/Constituent_Enhs' ; do
       ruby score_distribution.rb TSRE/mm10/$folder/${CL}.se.const.txt.bed gtrd/adaptive_quality/${TF}.bed $MOTIF  0.001  SE \
            sites_in_enhancers/$folder/${CL}.se.const.${MOTIF}.txt  \
            raw_scores/$folder/${CL}.se.const.${MOTIF}.txt  score_stats/$folder/${CL}.se.const.${MOTIF}.txt
-      ( \
-        echo $'chr\tfrom\tto\tMaxScore\tNumSites\tLen\tLambda\tHomotypicScore\tEnhancerType'; \
-        tail -n+2  score_stats/$folder/${CL}.te.const.${MOTIF}.txt; \
-        tail -n+2  score_stats/$folder/${CL}.se.const.${MOTIF}.txt; \
-      ) > joined_score_stats/$folder/${CL}.${MOTIF}.txt
+#      ( \
+#        echo $'chr\tfrom\tto\tMaxScore\tNumSites\tLen\tLambda\tHomotypicScore\tEnhancerType'; \
+#        tail -n+2  score_stats/$folder/${CL}.te.const.${MOTIF}.txt; \
+#        tail -n+2  score_stats/$folder/${CL}.se.const.${MOTIF}.txt; \
+#      ) > joined_score_stats/$folder/${CL}.${MOTIF}.txt
     done
   done
 done

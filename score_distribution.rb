@@ -38,17 +38,21 @@ cmd_1 = [
   "bedtools intersect -u -a #{chipseq_fn} -b -",
   "bedtools getfasta -fi genomes/mouse/mm10.fa -bed -",
   "java -cp sarus.jar ru.autosome.SARUS - #{motif_fn} #{pvalue_cutoff} --pvalues-file #{thresholds_fn} --output-scoring-mode logpvalue --suppress --threshold-mode pvalue --output-bed",
+  "bedtools sort",
 ].join(' | ') + " > #{sites_fn}"
 
 cmd_2 = [
   peaks_cmd(cell_line_enhancers_fn),
-  "bedtools intersect -loj -a - -b #{sites_fn}",
-  "bedtools groupby -c 8 -o collapse",
+  "bedtools sort",
+  "bedtools intersect -loj -a - -b <( echo $'chr1\\t1\\t1\\tXXX\\t0\\t+'; cat #{sites_fn} )",
+  "bedtools groupby -c 5,6,8 -o collapse",
 ].join(' | ') + " > #{raw_pvals_fn}"
 
 cmd_3 = "cat #{raw_pvals_fn} | ruby interval_scores.rb #{pvalue_cutoff} | awk -e '{print \$0 \"\\t#{enh_type}\"}' > #{output_fn}"
 
-puts "#{cmd_1}; #{cmd_2}; #{cmd_3}"
+puts cmd_3
+#puts "#{cmd_1}; #{cmd_2}"
+#puts "#{cmd_1}; #{cmd_2}; #{cmd_3}"
 # system(cmd_1)
 # system(cmd_2)
 # system(cmd_3)
