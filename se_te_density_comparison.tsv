@@ -1,0 +1,8 @@
+-log10(P-value) bin	TF-tissue pairs with dense TE-s	TF-tissue pairs with dense SE-s	SE/TE dense tissue pairs ratio
+0.0 - 0.5	818	1193	1.4584352078239609
+0.5 - 1.0	228	401	1.7587719298245614
+1.0 - 1.5	75	165	2.2
+1.5 - 2.0	21	48	2.2857142857142856
+2.0 - 2.5	5	14	2.8
+2.5 - 3.0	3	11	3.6666666666666665
+3.0 - Infinity	1	6	6.0

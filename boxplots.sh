@@ -1,3 +1,11 @@
+ruby motif_occurences.rb | parallel -j 10
+ruby fill_enhancers.rb | parallel -j 10
+ruby cistrome_overlap_in_enhancers.rb | parallel -j 10
+ruby num_occurences_in_enhancers.rb | parallel -j 20
+ruby site_densities.rb > u-mann-whitney.tsv
+ruby density_comparison.rb  > se_te_density_comparison.tsv
+
+
 TFS=`find gtrd/adaptive_quality/ -xtype f -iname '*_MOUSE.bed' -size +0 | xargs -rn1 basename -s.bed`
 
 for CL in BAT CH12 Kidney MEF Spleen Cortex MEL BmarrowDm Limb Testis Esb4 OlfactoryBulb Bmarrow Liver Thymus Es-E14 Placenta Cerebellum Lung Wbrain Heart SmallIntestine; do
